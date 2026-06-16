@@ -1,0 +1,71 @@
+{
+  "tickActual": 42,
+  "configuracion": {
+    "algoritmoPlanificacion": "RR",
+    "quantum": 4
+  },
+  "estadoCPU": {
+    "ejecutandoProcesoId": "P-102",
+    "programCounter": 14,
+    "limite32Bits": "0x0000000E"
+  },
+  "colasProcesos": {
+    "nuevos": ["P-105"],
+    "listos": ["P-103", "P-104"],
+    "bloqueados": ["P-101"]
+  },
+  "gestionMemoria": {
+    "tamanoTotalBytes": 1024,
+    "algoritmoAsignacion": "First-Fit",
+    "fragmentacionExternaBytes": 64,
+    "porcentajeDesperdicio": 6.25,
+    "mapaDeBits": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1],
+    "particiones": [
+      {
+        "idProceso": "P-102",
+        "direccionInicio": 0,
+        "tamanoBytes": 640,
+        "tipo": "stack"
+      },
+      {
+        "idProceso": "LIBRE",
+        "direccionInicio": 640,
+        "tamanoBytes": 256,
+        "tipo": "vacio"
+      },
+      {
+        "idProceso": "P-103",
+        "direccionInicio": 896,
+        "tamanoBytes": 128,
+        "tipo": "heap"
+      }
+    ]
+  },
+  "dispositivosES": [
+    {
+      "nombre": "Teclado",
+      "procesoActualId": "P-101",
+      "tiempoRestanteTick": 3,
+      "colaEspera": []
+    },
+    {
+      "nombre": "Disco",
+      "procesoActualId": null,
+      "tiempoRestanteTick": 0,
+      "colaEspera": []
+    },
+    {
+      "nombre": "Impresora",
+      "procesoActualId": null,
+      "tiempoRestanteTick": 0,
+      "colaEspera": []
+    }
+  ],
+  "sistema": {
+    "toleranciaFallosExcedida": false,
+    "logs": [
+      "[Tick 42] Proceso P-102 asignado a CPU.",
+      "[Tick 41] Proceso P-101 solicitó entrada de Teclado y pasó a BLOQUEADO."
+    ]
+  }
+}
