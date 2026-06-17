@@ -1,51 +1,66 @@
 {
-  "tickActual": 42,
+  "tickActual": 18,
   "configuracion": {
     "algoritmoPlanificacion": "RR",
-    "quantum": 4
+    "quantum": 4,
+    "tamanoPaginaBytes": 4096
   },
   "estadoCPU": {
-    "ejecutandoProcesoId": "P-102",
-    "programCounter": 14,
-    "limite32Bits": "0x0000000E"
+    "ejecutandoProcesoId": "P-01",
+    "programCounter": 10,
+    "limite32Bits": "0x0000000A"
   },
   "colasProcesos": {
-    "nuevos": ["P-105"],
-    "listos": ["P-103", "P-104"],
-    "bloqueados": ["P-101"]
+    "nuevos": ["P-04"],
+    "listos": ["P-02", "P-03"],
+    "bloqueados": []
   },
   "gestionMemoria": {
-    "tamanoTotalBytes": 1024,
-    "algoritmoAsignacion": "First-Fit",
-    "fragmentacionExternaBytes": 64,
-    "porcentajeDesperdicio": 6.25,
-    "mapaDeBits": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1],
-    "particiones": [
+    "algoritmoReemplazo": "FIFO",
+    "totalAccesos": 150,
+    "pageFaultsTotales": 12,
+    "porcentajeThrashing": 8.0,
+    "marcosRAM": [
       {
-        "idProceso": "P-102",
-        "direccionInicio": 0,
-        "tamanoBytes": 640,
-        "tipo": "stack"
+        "idMarco": 0,
+        "idProcesoAsignado": "P-01",
+        "numeroPaginaAsignada": 0
       },
       {
-        "idProceso": "LIBRE",
-        "direccionInicio": 640,
-        "tamanoBytes": 256,
-        "tipo": "vacio"
+        "idMarco": 1,
+        "idProcesoAsignado": "P-01",
+        "numeroPaginaAsignada": 1
       },
       {
-        "idProceso": "P-103",
-        "direccionInicio": 896,
-        "tamanoBytes": 128,
-        "tipo": "heap"
+        "idMarco": 2,
+        "idProcesoAsignado": "P-02",
+        "numeroPaginaAsignada": 0
+      },
+      {
+        "idMarco": 3,
+        "idProcesoAsignado": null,
+        "numeroPaginaAsignada": -1
       }
-    ]
+    ],
+    "areaSwap": {
+      "totalPaginasEnDisco": 2,
+      "paginas": [
+        {
+          "idProceso": "P-02",
+          "numeroPagina": 1
+        },
+        {
+          "idProceso": "P-03",
+          "numeroPagina": 0
+        }
+      ]
+    }
   },
   "dispositivosES": [
     {
       "nombre": "Teclado",
-      "procesoActualId": "P-101",
-      "tiempoRestanteTick": 3,
+      "procesoActualId": null,
+      "tiempoRestanteTick": 0,
       "colaEspera": []
     },
     {
@@ -64,8 +79,8 @@
   "sistema": {
     "toleranciaFallosExcedida": false,
     "logs": [
-      "[Tick 42] Proceso P-102 asignado a CPU.",
-      "[Tick 41] Proceso P-101 solicitó entrada de Teclado y pasó a BLOQUEADO."
+      "[Tick 18] Instrucción ejecutada exitosamente para P-01.",
+      "[Tick 17] Page Fault resuelto: Página 0 de P-02 movida a RAM. Página 1 de P-02 enviada a Swap."
     ]
   }
 }
