@@ -77,6 +77,8 @@ public class VerificadorFundaciones {
             throw new RuntimeException("El estado inicial de un proceso debe ser NUEVO.");
         }
         
+        // Transición válida: NUEVO → LISTO → EJECUTANDO
+        p.setEstado(EstadoProceso.LISTO);
         p.setEstado(EstadoProceso.EJECUTANDO);
         if (p.getEstado() != EstadoProceso.EJECUTANDO) {
             throw new RuntimeException("No se actualizó el estado del proceso.");
@@ -162,13 +164,8 @@ public class VerificadorFundaciones {
             throw new RuntimeException("Fallo cargar página en RAM.");
         }
         
-        // Verificar estrategia de reemplazo
-        AlgoritmoReemplazo lru = new AlgoritmoReemplazo() {
-            @Override
-            public int seleccionarVictima(MarcoRAM[] marcos) {
-                return 0;
-            }
-        };
+        // Verificar estrategia de reemplazo (strategy.AlgoritmoReemplazo es una interfaz)
+        strategy.AlgoritmoReemplazo lru = marcos -> 0;
         gmv.setAlgoritmoReemplazo(lru);
         if (gmv.getAlgoritmoReemplazo() != lru) {
             throw new RuntimeException("Error asignando estrategia de reemplazo.");
