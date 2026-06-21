@@ -1,11 +1,15 @@
 package memoria;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * Representa el área de Swap en disco para almacenar páginas desalojadas de RAM.
+ */
 public class DiscoSwap {
-    // Registra los identificadores de páginas en swap (Ej: "P1-Pag0")
-    private Set<String> paginasEnSwap;
+    // Registra los identificadores de páginas en swap (Ej: "P1-Pag-0")
+    private final Set<String> paginasEnSwap;
 
     public DiscoSwap() {
         this.paginasEnSwap = new HashSet<>();
@@ -21,5 +25,9 @@ public class DiscoSwap {
 
     public boolean estaEnSwap(String idProceso, int numeroPagina) {
         return paginasEnSwap.contains(idProceso + "-Pag-" + numeroPagina);
+    }
+
+    public Set<String> getPaginasEnSwap() {
+        return Collections.unmodifiableSet(paginasEnSwap);
     }
 }
