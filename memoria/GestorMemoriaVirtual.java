@@ -279,3 +279,10 @@ public class GestorMemoriaVirtual {
     public void setPorcentajeThrashing(double pt) { this.porcentajeThrashing = pt; }
     public int getPageFaultsTotales() { return pageFaultsTotales; }
 }
+    }
+
+    public boolean cargarPaginaEnRAM(String idProceso, int numeroPagina) {
+        // TODO: Fase 3 - Cargar en marco libre o ejecutar reemplazo (FIFO/LRU/Reloj)
+        return true;
+    }
+}
