@@ -1,7 +1,10 @@
 package memoria;
 
+/**
+ * Representa un marco físico de la memoria RAM.
+ */
 public class MarcoRAM {
-    private int idMarco;
+    private final int idMarco;
     private String idProcesoAsignado; // null si está libre
     private int numeroPaginaAsignada;
 
