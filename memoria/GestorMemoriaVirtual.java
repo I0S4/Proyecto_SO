@@ -13,18 +13,10 @@ import strategy.AlgoritmoReemplazo;
 
 /**
  * Orquestador principal de la Memoria Virtual del Simulador.
- *
- * Fase 2 - Backend 2:
- *   - Clase de partición de memoria (cálculo de tamaño stack/heap).
- *   - Mapa de Bits implícito: cada MarcoRAM representa un bit (libre/ocupado).
- *   - División estricta en Marcos (RAM): instanciados en el constructor.
- *   - Instanciación del Área de Swap (Disco): DiscoSwap encapsula las páginas en disco.
- *   - Lógica de la Tabla de Páginas: inicializarEspacioProceso construye y registra la tabla.
- *
- * Fase 3 (ya adelantado, no modificar):
- *   - Políticas de asignación First/Best/Worst Fit.
- *   - Algoritmos de reemplazo FIFO y LRU.
- *   - Generación del DTO unificado.
+ * * Implementa de forma estricta todos los requerimientos de la Fase 3:
+ * - Políticas de asignación inicial continuas (First, Best y Worst Fit) corregidas.
+ * - Algoritmos de reemplazo integrados con la interfaz Strategy (FIFO y LRU Real).
+ * - Sincronización del Bit P y mapeo directo a las estructuras DTO del sistema.
  */
 public class GestorMemoriaVirtual {
 
@@ -44,6 +36,7 @@ public class GestorMemoriaVirtual {
     // Configuración de políticas activas en la simulación
     private PoliticaAsignacion politicaAsignacion;
     private AlgoritmoReemplazo algoritmoReemplazo;
+    private String nombreAlgoritmoActivo; // Para reportar correctamente en el DTO
 
     // Métricas globales requeridas por el DTO del sistema
     private int totalAccesos;
@@ -75,12 +68,12 @@ public class GestorMemoriaVirtual {
         this.discoSwap          = new DiscoSwap();
         this.politicaAsignacion = PoliticaAsignacion.FIRST_FIT;
 
-        // Algoritmo de reemplazo por defecto: FIFO (implementado como lambda)
-        this.algoritmoReemplazo = marcos -> seleccionarVictimaFIFO();
+        // Por defecto se configura FIFO mediante la interfaz funcional
+        configurarAlgoritmoPorNombre("FIFO");
     }
 
     // -------------------------------------------------------------------------
-    // Fase 2 – Backend 2: Partición de Memoria y Tabla de Páginas
+    // Fase 2 y 3 – Ubicación, Partición y Tabla de Páginas
     // -------------------------------------------------------------------------
 
     /**
@@ -106,11 +99,6 @@ public class GestorMemoriaVirtual {
     /**
      * Reserva espacio inicial para las páginas de un proceso usando la política Fit activa.
      * Si no existe bloque contiguo suficiente, las páginas van directamente al Swap.
-     *
-     * Registra la tabla en el mapa interno para que ejecutarSwapping pueda actualizar
-     * el Bit P de las páginas víctimas correctamente.
-     *
-     * @return La TablaPaginas construida y registrada para el proceso.
      */
     public TablaPaginas inicializarEspacioProceso(String idProceso, int bytesStack, int bytesHeap) {
         TablaPaginas tabla = new TablaPaginas(idProceso);
@@ -141,26 +129,19 @@ public class GestorMemoriaVirtual {
             }
         }
 
-        // Registrar la tabla para mantener consistencia del Bit P durante swapping
         tablasPaginas.put(idProceso, tabla);
         return tabla;
     }
 
     /**
-     * Método de acceso directo requerido por el verificador y el Frontend.
+     * Método de acceso directo requerido por el simulador y el Frontend.
      * Carga la página lógica indicada en RAM (si no está ya presente).
-     *
-     * @param idProceso    Identificador del proceso.
-     * @param numeroPagina Número de página lógica a cargar.
-     * @return true si la operación se completó sin errores.
      */
     public boolean cargarPaginaEnRAM(String idProceso, int numeroPagina) {
-        // Obtener o crear la tabla de páginas del proceso
         TablaPaginas tabla = tablasPaginas.computeIfAbsent(
             idProceso, id -> new TablaPaginas(id)
         );
 
-        // Buscar la página en la tabla; si no existe, crearla como página HEAP sin marco
         Pagina pagina = tabla.getPaginas().stream()
             .filter(p -> p.getNumeroPagina() == numeroPagina)
             .findFirst()
@@ -171,7 +152,6 @@ public class GestorMemoriaVirtual {
             pagina = tabla.getPaginas().get(tabla.getPaginas().size() - 1);
         }
 
-        // Acceder a la página: si no está presente, dispara page fault y swapping
         accederPagina(idProceso, pagina);
         return true;
     }
@@ -182,7 +162,7 @@ public class GestorMemoriaVirtual {
      */
     public void accederPagina(String idProceso, Pagina pagina) {
         this.totalAccesos++;
-        pagina.registrarAcceso();
+        pagina.registrarAcceso(); // Actualiza el bit R y el timestamp en nanosegundos
 
         if (!pagina.isPresente()) {
             this.pageFaultsTotales++;
@@ -192,25 +172,23 @@ public class GestorMemoriaVirtual {
 
     /**
      * Trae una página del Swap hacia la RAM.
-     * Si la RAM está llena, aplica el algoritmo de reemplazo seleccionado y
-     * actualiza el Bit P (presente = false, marco = -1) de la página víctima
-     * en la tabla de páginas de su proceso.
+     * Si la RAM está llena, aplica el algoritmo de reemplazo seleccionado mediante la interfaz Strategy
+     * y actualiza el Bit P (presente = false, marco = -1) de la página víctima.
      */
     private void ejecutarSwapping(String idProceso, Pagina paginaRequerida) {
         int marcoDestino = buscarPrimerMarcoLibreAsilado();
 
         if (marcoDestino == -1) {
-            // RAM llena: seleccionar víctima con el algoritmo activo
+            // RAM llena: seleccionar víctima invocando la estrategia funcional activa
             marcoDestino = this.algoritmoReemplazo.seleccionarVictima(marcosRAM);
 
             MarcoRAM marcoVictima = marcosRAM[marcoDestino];
             String   idVictima    = marcoVictima.getIdProcesoAsignado();
             int      paginaVictima = marcoVictima.getNumeroPaginaAsignada();
 
-            // Enviar la página víctima al disco
             discoSwap.enviarASwap(idVictima, paginaVictima);
 
-            // Actualizar el Bit P y marco físico en la Tabla de Páginas del proceso víctima
+            // Apagar bits de control en la tabla de la página expulsada
             TablaPaginas tablaVictima = tablasPaginas.get(idVictima);
             if (tablaVictima != null) {
                 for (Pagina p : tablaVictima.getPaginas()) {
@@ -221,11 +199,9 @@ public class GestorMemoriaVirtual {
                     }
                 }
             }
-
             marcoVictima.liberar();
         }
 
-        // Retirar la página requerida del Swap y cargarla en el marco liberado
         discoSwap.retirarDeSwap(idProceso, paginaRequerida.getNumeroPagina());
         marcosRAM[marcoDestino].asignar(idProceso, paginaRequerida.getNumeroPagina());
         paginaRequerida.setMarcoFisico(marcoDestino);
@@ -234,20 +210,28 @@ public class GestorMemoriaVirtual {
     }
 
     // -------------------------------------------------------------------------
-    // Algoritmos de Ubicación (Políticas Fit) – Fase 3 adelantado
+    // Algoritmos de Ubicación Corregidos (Políticas Fit)
     // -------------------------------------------------------------------------
 
+    /**
+     * Busca un bloque libre contiguo según la política activa (First, Best o Worst Fit).
+     * Garantiza comparaciones y extremos inicializados correctamente.
+     */
     private int buscarBloqueLibre(int tamanoRequerido) {
         List<Integer> bloquesValidos = new ArrayList<>();
         int longitudActual = 0;
         int inicioActual   = -1;
 
+        // Identificar los índices de inicio de todos los bloques que cumplen el tamaño requerido
         for (int i = 0; i < marcosRAM.length; i++) {
             if (marcosRAM[i].estaLibre()) {
                 if (longitudActual == 0) inicioActual = i;
                 longitudActual++;
                 if (longitudActual >= tamanoRequerido) {
-                    bloquesValidos.add(inicioActual);
+                    // Guardamos el inicio si es el primer momento en que este bloque alcanza el tamaño
+                    if (!bloquesValidos.contains(inicioActual)) {
+                        bloquesValidos.add(inicioActual);
+                    }
                 }
             } else {
                 longitudActual = 0;
@@ -256,21 +240,27 @@ public class GestorMemoriaVirtual {
 
         if (bloquesValidos.isEmpty()) return -1;
 
+        // First Fit: Retorna el primer bloque encontrado
         if (politicaAsignacion == PoliticaAsignacion.FIRST_FIT) {
             return bloquesValidos.get(0);
         }
 
-        int mejorIndice  = bloquesValidos.get(0);
+        int mejorIndice = bloquesValidos.get(0);
         int extremoTamano = obtenerLongitudBloqueDesde(mejorIndice);
 
+        // Evaluar Best Fit y Worst Fit con inicializaciones reales
         for (int indice : bloquesValidos) {
             int len = obtenerLongitudBloqueDesde(indice);
-            if (politicaAsignacion == PoliticaAsignacion.BEST_FIT && len < extremoTamano) {
-                extremoTamano = len;
-                mejorIndice   = indice;
-            } else if (politicaAsignacion == PoliticaAsignacion.WORST_FIT && len > extremoTamano) {
-                extremoTamano = len;
-                mejorIndice   = indice;
+            if (politicaAsignacion == PoliticaAsignacion.BEST_FIT) {
+                if (len < extremoTamano) {
+                    extremoTamano = len;
+                    mejorIndice = indice;
+                }
+            } else if (politicaAsignacion == PoliticaAsignacion.WORST_FIT) {
+                if (len > extremoTamano) {
+                    extremoTamano = len;
+                    mejorIndice = indice;
+                }
             }
         }
         return mejorIndice;
@@ -290,7 +280,7 @@ public class GestorMemoriaVirtual {
     }
 
     // -------------------------------------------------------------------------
-    // Algoritmos de Reemplazo – Fase 3 adelantado
+    // Métodos de Selección de Víctimas (Estrategias de Reemplazo)
     // -------------------------------------------------------------------------
 
     private int seleccionarVictimaFIFO() {
@@ -298,22 +288,38 @@ public class GestorMemoriaVirtual {
         return (marcoVictima != null) ? marcoVictima : 0;
     }
 
+    /**
+     * Implementación determinista de LRU Real.
+     * Analiza los timestamps en nanosegundos de las páginas presentes en los marcos ocupados.
+     */
     private int seleccionarVictimaLRU() {
-        // Mock: expulsa el primer marco ocupado encontrado.
-        // La integración completa del timestamp se realiza en Fase 3/4.
+        int marcoVictima = 0;
+        long tiempoMasAntiguo = Long.MAX_VALUE;
+
         for (int i = 0; i < marcosRAM.length; i++) {
-            if (!marcosRAM[i].estaLibre()) return i;
+            MarcoRAM marco = marcosRAM[i];
+            if (!marco.estaLibre()) {
+                TablaPaginas tabla = tablasPaginas.get(marco.getIdProcesoAsignado());
+                if (tabla != null) {
+                    for (Pagina p : tabla.getPaginas()) {
+                        if (p.isPresente() && p.getMarcoFisico() == marco.getIdMarco()) {
+                            if (p.getTimestampAcceso() < tiempoMasAntiguo) {
+                                tiempoMasAntiguo = p.getTimestampAcceso();
+                                marcoVictima = marco.getIdMarco();
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
         }
-        return 0;
+        return marcoVictima;
     }
 
     // -------------------------------------------------------------------------
-    // Generación del DTO – Fase 3 adelantado
+    // Generación del DTO e Integración Externa
     // -------------------------------------------------------------------------
 
-    /**
-     * Transforma el estado interno del gestor en el DTO exacto requerido por el Frontend.
-     */
     public GestionMemoriaDTO generarGestionMemoriaDTO() {
         List<MarcoRAMDTO> marcosDTO = new ArrayList<>();
         for (MarcoRAM marco : marcosRAM) {
@@ -329,8 +335,11 @@ public class GestorMemoriaVirtual {
             discoSwap.getPaginas()
         );
 
+        // Muestra de manera unificada la combinación de políticas activa
+        String configuracionEstrategia = politicaAsignacion.toString() + " / " + nombreAlgoritmoActivo;
+
         return new GestionMemoriaDTO(
-            algoritmoReemplazo.toString(),
+            configuracionEstrategia,
             totalAccesos,
             pageFaultsTotales,
             porcentajeThrashing,
@@ -339,22 +348,31 @@ public class GestorMemoriaVirtual {
         );
     }
 
-    // -------------------------------------------------------------------------
-    // Getters y Setters de configuración
-    // -------------------------------------------------------------------------
+    /**
+     * Permite cambiar dinámicamente el comportamiento de reemplazo desde el controlador central,
+     * inyectando las expresiones lambda correspondientes que implementan la interfaz Strategy.
+     */
+    public void configurarAlgoritmoPorNombre(String nombre) {
+        if (nombre == null) return;
+        
+        if (nombre.equalsIgnoreCase("LRU")) {
+            this.algoritmoReemplazo = marcos -> seleccionarVictimaLRU();
+            this.nombreAlgoritmoActivo = "LRU";
+        } else {
+            this.algoritmoReemplazo = marcos -> seleccionarVictimaFIFO();
+            this.nombreAlgoritmoActivo = "FIFO";
+        }
+    }
 
-    public int getTamanoPaginaBytes()      { return tamanoPaginaBytes; }
-    public int getPageFaultsTotales()      { return pageFaultsTotales; }
+    // Getters y Setters base
+    public int getTamanoPaginaBytes()                 { return tamanoPaginaBytes; }
+    public int getPageFaultsTotales()                 { return pageFaultsTotales; }
     public AlgoritmoReemplazo getAlgoritmoReemplazo() { return algoritmoReemplazo; }
 
     public void setPoliticaAsignacion(PoliticaAsignacion p) { this.politicaAsignacion = p; }
-    public void setAlgoritmoReemplazo(AlgoritmoReemplazo a) { this.algoritmoReemplazo = a; }
+    public void setAlgoritmoReemplazo(AlgoritmoReemplazo a) { 
+        this.algoritmoReemplazo = a; 
+        this.nombreAlgoritmoActivo = "CUSTOM_STRATEGY";
+    }
     public void setPorcentajeThrashing(double pt)           { this.porcentajeThrashing = pt; }
-}
-    }
-
-    public boolean cargarPaginaEnRAM(String idProceso, int numeroPagina) {
-        // TODO: Fase 3 - Cargar en marco libre o ejecutar reemplazo (FIFO/LRU/Reloj)
-        return true;
-    }
 }
