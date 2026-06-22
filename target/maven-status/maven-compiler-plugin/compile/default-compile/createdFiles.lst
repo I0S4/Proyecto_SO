@@ -33,6 +33,7 @@ dto\EstadoSistemaDTO$PaginaSwapDTO.class
 strategy\SRTF.class
 dto\EstadoSistemaDTO$ColasProcesosDTO.class
 memoria\DiscoSwap.class
+Server.class
 memoria\MarcoRAM.class
 memoria\GestorMemoriaVirtual$PoliticaAsignacion.class
 dto\EstadoSistemaDTO$ConfiguracionDTO.class
