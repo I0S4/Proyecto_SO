@@ -13,6 +13,7 @@ public class Proceso {
     private EstadoProceso estado;
     private Direccion32 programCounter;
     private final int totalInstrucciones;
+    private int tiempoRafagaRestante;
     private TablaPaginas tablaPaginas; // No-final: el GestorMemoriaVirtual la sincroniza
 
     public Proceso(String id, int totalInstrucciones, int tamanoPaginaBytes) {
@@ -20,6 +21,7 @@ public class Proceso {
         this.estado = EstadoProceso.NUEVO;
         this.programCounter = Direccion32.CERO;
         this.totalInstrucciones = totalInstrucciones;
+        this.tiempoRafagaRestante = totalInstrucciones;
         this.tablaPaginas = new TablaPaginas(id);
     }
 
@@ -32,6 +34,14 @@ public class Proceso {
     public Direccion32 getProgramCounter() { return programCounter; }
 
     public int getTotalInstrucciones() { return totalInstrucciones; }
+
+    public int getTiempoRafagaRestante() { return tiempoRafagaRestante; }
+
+    public void decrementarRafaga() {
+        if (this.tiempoRafagaRestante > 0) {
+            this.tiempoRafagaRestante--;
+        }
+    }
 
     public TablaPaginas getTablaPaginas() { return tablaPaginas; }
 

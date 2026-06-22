@@ -14,4 +14,12 @@ public interface AlgoritmoPlanificacion {
      * @return El proceso seleccionado para ejecución, o null si la lista está vacía.
      */
     Proceso seleccionarSiguiente(List<Proceso> listos);
+
+    default boolean esExpropiativo() {
+        return false;
+    }
+
+    default boolean usaQuantum() {
+        return false;
+    }
 }

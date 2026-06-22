@@ -10,6 +10,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import strategy.AlgoritmoReemplazo;
+import interrupciones.GestorInterrupciones;
+import interrupciones.Interrupcion;
+import interrupciones.Interrupcion.TipoInterrupcion;
 
 /**
  * Orquestador principal de la Memoria Virtual del Simulador.
@@ -44,6 +47,7 @@ public class GestorMemoriaVirtual {
     // Configuración de políticas activas en la simulación
     private PoliticaAsignacion politicaAsignacion;
     private AlgoritmoReemplazo algoritmoReemplazo;
+    private GestorInterrupciones gestorInterrupciones;
 
     // Métricas globales requeridas por el DTO del sistema
     private int totalAccesos;
@@ -52,6 +56,10 @@ public class GestorMemoriaVirtual {
 
     // Cola FIFO interna para el algoritmo de reemplazo por defecto
     private final Queue<Integer> colaFIFO;
+
+    public void setGestorInterrupciones(GestorInterrupciones gestorInterrupciones) {
+        this.gestorInterrupciones = gestorInterrupciones;
+    }
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -104,8 +112,10 @@ public class GestorMemoriaVirtual {
     }
 
     /**
-     * Reserva espacio inicial para las páginas de un proceso usando la política Fit activa.
-     * Si no existe bloque contiguo suficiente, las páginas van directamente al Swap.
+     * Reserva espacio inicial para las páginas de un proceso.
+     * Asigna cada página al primer marco libre disponible de forma individual
+     * (la paginación no requiere contigüidad física). Si no hay marcos disponibles,
+     * las páginas restantes van directamente al Swap.
      *
      * Registra la tabla en el mapa interno para que ejecutarSwapping pueda actualizar
      * el Bit P de las páginas víctimas correctamente.
@@ -122,18 +132,17 @@ public class GestorMemoriaVirtual {
         for (int i = 0; i < paginasStack; i++) tabla.agregarPagina("STACK");
         for (int i = 0; i < paginasHeap;  i++) tabla.agregarPagina("HEAP");
 
-        int indiceMarcoInicio = buscarBloqueLibre(totalPaginasRequeridas);
-
         for (Pagina pagina : tabla.getPaginas()) {
-            if (indiceMarcoInicio != -1) {
-                marcosRAM[indiceMarcoInicio].asignar(idProceso, pagina.getNumeroPagina());
-                pagina.setMarcoFisico(indiceMarcoInicio);
+            // Buscar un marco libre de forma individual (paginación no requiere contigüidad)
+            int marcoLibre = buscarPrimerMarcoLibreAsilado();
+            if (marcoLibre != -1) {
+                marcosRAM[marcoLibre].asignar(idProceso, pagina.getNumeroPagina());
+                pagina.setMarcoFisico(marcoLibre);
                 pagina.setPresente(true);
 
-                if (!colaFIFO.contains(indiceMarcoInicio)) {
-                    colaFIFO.add(indiceMarcoInicio);
+                if (!colaFIFO.contains(marcoLibre)) {
+                    colaFIFO.add(marcoLibre);
                 }
-                indiceMarcoInicio++;
             } else {
                 discoSwap.enviarASwap(idProceso, pagina.getNumeroPagina());
                 pagina.setMarcoFisico(-1);
@@ -177,6 +186,38 @@ public class GestorMemoriaVirtual {
     }
 
     /**
+     * Accede a una dirección de memoria lógica del proceso.
+     * Traduce dirección a número de página lógica, busca o crea la página y la accede.
+     */
+    public void accederDireccion(String idProceso, long direccionLogica) {
+        if (tamanoPaginaBytes <= 0) {
+            throw new IllegalStateException("El tamaño de página debe ser mayor a 0.");
+        }
+        int numeroPagina = (int) (direccionLogica / tamanoPaginaBytes);
+        TablaPaginas tabla = tablasPaginas.get(idProceso);
+        if (tabla == null) {
+            tabla = inicializarEspacioProceso(idProceso, tamanoPaginaBytes, 0);
+        }
+        
+        Pagina pagina = null;
+        for (Pagina p : tabla.getPaginas()) {
+            if (p.getNumeroPagina() == numeroPagina) {
+                pagina = p;
+                break;
+            }
+        }
+        
+        if (pagina == null) {
+            while (tabla.getPaginas().size() <= numeroPagina) {
+                tabla.agregarPagina("HEAP");
+            }
+            pagina = tabla.getPaginas().get(numeroPagina);
+        }
+        
+        accederPagina(idProceso, pagina);
+    }
+
+    /**
      * Simula el acceso a una página lógica del proceso.
      * Si no está presente en RAM (Bit P = 0), genera un Page Fault e inicia swapping.
      */
@@ -186,6 +227,13 @@ public class GestorMemoriaVirtual {
 
         if (!pagina.isPresente()) {
             this.pageFaultsTotales++;
+            if (gestorInterrupciones != null) {
+                gestorInterrupciones.notificar(new Interrupcion(
+                    TipoInterrupcion.PAGE_FAULT,
+                    "Page Fault en proceso " + idProceso + ", página " + pagina.getNumeroPagina(),
+                    idProceso
+                ));
+            }
             ejecutarSwapping(idProceso, pagina);
         }
     }
@@ -299,12 +347,32 @@ public class GestorMemoriaVirtual {
     }
 
     private int seleccionarVictimaLRU() {
-        // Mock: expulsa el primer marco ocupado encontrado.
-        // La integración completa del timestamp se realiza en Fase 3/4.
+        // LRU real: expulsa el marco cuya página fue accedida hace más tiempo
+        // usando el campo timestampAcceso de Pagina (actualizado en registrarAcceso).
+        int marcoVictima = -1;
+        long timestampMinimo = Long.MAX_VALUE;
+
         for (int i = 0; i < marcosRAM.length; i++) {
-            if (!marcosRAM[i].estaLibre()) return i;
+            MarcoRAM marco = marcosRAM[i];
+            if (!marco.estaLibre()) {
+                TablaPaginas tabla = tablasPaginas.get(marco.getIdProcesoAsignado());
+                if (tabla != null) {
+                    for (Pagina p : tabla.getPaginas()) {
+                        if (p.getNumeroPagina() == marco.getNumeroPaginaAsignada()) {
+                            if (p.getTimestampAcceso() < timestampMinimo) {
+                                timestampMinimo = p.getTimestampAcceso();
+                                marcoVictima = i;
+                            }
+                            break;
+                        }
+                    }
+                } else {
+                    // No se encontró tabla: usar este marco como fallback
+                    if (marcoVictima == -1) marcoVictima = i;
+                }
+            }
         }
-        return 0;
+        return (marcoVictima != -1) ? marcoVictima : 0;
     }
 
     // -------------------------------------------------------------------------

@@ -69,6 +69,10 @@ public class DispositivoES {
                 procesoActivo = null;
             }
         }
+        if (procesoActivo == null && !colaEspera.isEmpty()) {
+            procesoActivo = colaEspera.poll();
+            tiempoRestanteTick = 5;
+        }
     }
 
     public void solicitarES(Proceso proceso) {
