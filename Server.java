@@ -84,16 +84,19 @@ public class Server {
         app.ws("/simulador", ws -> {
             ws.onConnect(ctx -> {
                 sessions.add(ctx);
+                System.out.println("[WS] Cliente conectado desde: " + ctx.session.getRemoteAddress());
                 // Send current state on connect
                 ctx.send(obtenerEstado());
             });
 
             ws.onClose(ctx -> {
                 sessions.remove(ctx);
+                System.out.println("[WS] Cliente desconectado. Conexiones activas: " + sessions.size());
             });
 
             ws.onError(ctx -> {
                 sessions.remove(ctx);
+                System.out.println("[WS] Error en la conexion: " + (ctx.error() != null ? ctx.error().getMessage() : "Desconocido") + ". Conexiones activas: " + sessions.size());
             });
 
             ws.onMessage(ctx -> {
