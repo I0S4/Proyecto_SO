@@ -6,6 +6,7 @@ import dto.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class VerificadorFundaciones {
 
@@ -208,11 +209,16 @@ public class VerificadorFundaciones {
             )
         );
         
-        EstadoSistemaDTO payload = new EstadoSistemaDTO(
-            18, config, cpu, colas, memoria, List.of(dev1, dev2, dev3), sistema
+        Map<String, EstadoSistemaDTO.ProcesoDTO> dic = Map.of(
+            "P-02", new EstadoSistemaDTO.ProcesoDTO("P-02", "LISTO", 5),
+            "P-03", new EstadoSistemaDTO.ProcesoDTO("P-03", "LISTO", 12)
         );
-        
-        if (payload.tickActual() != 18 || payload.configuracion().quantum() != 4 || payload.estadoCPU().programCounter() != 10) {
+
+        EstadoSistemaDTO payload = new EstadoSistemaDTO(
+            18, config, cpu, colas, dic, memoria, List.of(dev1, dev2, dev3), sistema
+        );
+
+        if (payload.tickActual() != 18 || payload.configuracion().quantum() != 4 || payload.estadoCPU().programCounter() != 10 || payload.diccionarioProcesos().size() != 2) {
             throw new RuntimeException("Error en valores DTO del payload unificado.");
         }
         

@@ -11,6 +11,8 @@ import strategy.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 /**
  * Orquestador principal del motor del Simulador del Sistema Operativo.
@@ -177,6 +179,17 @@ public class SimuladorSO {
 
         EstadoCPUDTO cpuDTO = planificadorCPU.generarCPUDTO();
         ColasProcesosDTO colasDTO = planificadorCPU.generarColasDTO();
+
+        Map<String, ProcesoDTO> diccionarioProcesos = new HashMap<>();
+        for (Map.Entry<String, Proceso> entry : planificadorCPU.getMapaProcesos().entrySet()) {
+            Proceso p = entry.getValue();
+            diccionarioProcesos.put(p.getId(), new ProcesoDTO(
+                p.getId(),
+                p.getEstado().name(),
+                p.getTiempoRafagaRestante()
+            ));
+        }
+
         GestionMemoriaDTO memDTO = gmv.generarGestionMemoriaDTO();
 
         List<DispositivoESDTO> devsDTO = new ArrayList<>();
@@ -207,6 +220,7 @@ public class SimuladorSO {
                 configDTO,
                 cpuDTO,
                 colasDTO,
+                diccionarioProcesos,
                 memDTO,
                 devsDTO,
                 sistemaDTO

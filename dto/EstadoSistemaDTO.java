@@ -1,6 +1,7 @@
 package dto;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * DTO que representa el payload JSON unificado que se envía por WebSockets.
@@ -11,10 +12,17 @@ public record EstadoSistemaDTO(
     ConfiguracionDTO configuracion,
     EstadoCPUDTO estadoCPU,
     ColasProcesosDTO colasProcesos,
+    Map<String, ProcesoDTO> diccionarioProcesos,
     GestionMemoriaDTO gestionMemoria,
     List<DispositivoESDTO> dispositivosES,
     SistemaDTO sistema
 ) {
+    public record ProcesoDTO(
+        String id,
+        String estado,
+        int burstTimeRestante
+    ) {}
+
     public record ConfiguracionDTO(
         String algoritmoPlanificacion,
         int quantum,
