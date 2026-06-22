@@ -25,6 +25,7 @@ strategy\FCFS.class
 memoria\Memoria.class
 interrupciones\EscuchadorInterrupcion.class
 VerificadorFundaciones$1.class
+dto\EstadoSistemaDTO$ProcesoDTO.class
 interrupciones\Interrupcion.class
 strategy\RoundRobin.class
 memoria\GestorMemoriaVirtual.class
