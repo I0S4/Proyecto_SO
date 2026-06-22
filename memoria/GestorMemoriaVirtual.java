@@ -44,6 +44,7 @@ public class GestorMemoriaVirtual {
     private PoliticaAsignacion politicaAsignacion;
     private AlgoritmoReemplazo algoritmoReemplazo;
     private GestorInterrupciones gestorInterrupciones;
+    private String nombreAlgoritmoActivo;
 
     // Métricas globales requeridas por el DTO del sistema
     private int totalAccesos;
