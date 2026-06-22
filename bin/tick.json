@@ -15,6 +15,12 @@
     "listos": ["P-02", "P-03"],
     "bloqueados": []
   },
+  "diccionarioProcesos": {
+    "P-01": { "id": "P-01", "estado": "EJECUTANDO", "burstTimeRestante": 8 },
+    "P-02": { "id": "P-02", "estado": "LISTO",      "burstTimeRestante": 5 },
+    "P-03": { "id": "P-03", "estado": "LISTO",      "burstTimeRestante": 12 },
+    "P-04": { "id": "P-04", "estado": "NUEVO",      "burstTimeRestante": 20 }
+  },
   "gestionMemoria": {
     "algoritmoReemplazo": "FIFO",
     "totalAccesos": 150,
